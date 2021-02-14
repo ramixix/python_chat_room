@@ -5,17 +5,20 @@ import threading
 FORMAT = "utf-8"
 HEADERSIZE = 16
 clients_list = []
-client_msgs = []
 
-class Clinet:
+class Client:
     def __init__(self, sock, ip, port):
-        self.name = ""
         self.sock = sock
         self.ip = ip
         self.port = port
+        self.name = None
 
     def setname(self, name):
         self.name = name
+    
+    def __repr__(self):
+        return f"Client({self.ip}, {self.port})"
+
 
 
 def send_to_client(client_socket, msg):
@@ -25,46 +28,51 @@ def send_to_client(client_socket, msg):
     message = (msg_header + msg).encode(FORMAT)
     client_socket.send(message)
 
-def broadcast(cli, msg):
+
+def broadcast(msg):
     for client in clients_list:
-        send_to_client(client.sock, cli.name + msg)
+        send_to_client(client.sock, msg)
+
+
+def asks_client_name(client_obj):
+    client_socket = client_obj.sock
+    msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+    if msg_header:
+        msg_length =  int(msg_header.strip(" "))
+        name = client_socket.recv(msg_length).decode(FORMAT)
+        client_obj.setname(name)
+        send_to_client(client_socket, f"Welcom To Chat Room {name} :)")
+        broadcast(f"\"{name}\" Joined Us!!!")
+
 
 # make a header for every message that is going to be send.
 # this header contain message length so this way by reading header first 
 # client can easily find the length of message
-
-    
-
-def client_handler(client_socket, addr):
-
-    client_obj = Clinet(client_socket, addr[0], addr[1])
-    msg_header = client_obj.sock.recv(HEADERSIZE).decode(FORMAT)
-    if msg_header:
-            msg_length =  int(msg_header.strip(" "))
-            client_obj.setname(client_obj.sock.recv(msg_length).decode(FORMAT))
-            clients_list.append(client_obj)
-    
-    broadcast(client_obj, " Joined Us!!!")
-
+def client_handler(client_obj):
+    client_socket = client_obj.sock
+    name = client_obj.name
     while True:
-        msg_header = client_obj.sock.recv(HEADERSIZE).decode(FORMAT)
+        msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
         if msg_header:
             msg_length =  int(msg_header.strip(" "))
-            data = client_obj.sock.recv(msg_length).decode(FORMAT)
-            if data.lower() == "q":
-                if len(clients_list) != 1:
-                    broadcast(client_obj, f"[-] clinet {client_obj.name} left the chat")
-                    client_obj.sock.close()
-                    clients_list.remove(client_obj)   
-                    break
-                else:
-                    client_obj.sock.close()
-                    clients_list.remove(client_obj)   
-                    break
+            if msg_length != 0:
+                data = client_socket.recv(msg_length).decode(FORMAT)
+                if data.lower() == "q":
+                    if len(clients_list) != 1:
+                        client_socket.close()
+                        clients_list.remove(client_obj)   
+                        broadcast(f"[-] clinet \"{name}\" left the chat")
+                        break
+                    else:
+                        client_socket.close()
+                        clients_list.remove(client_obj)   
+                        break
 
-            if data != "":
-                broadcast(client_obj, ": " + data)
-                print(colored(f"[+] Data received from {addr[0]} port {addr[1]} : {data}", 'green'))
+                if data != "":
+                    # broadcast_thread = threading.Thread(target=broadcast, args=(name + ": " + data,))
+                    # broadcast_thread.start()
+                    broadcast(name + ": " + data)
+                    print(colored(f"[+] Data received from {client_obj.ip} port {client_obj.port} : {data}", 'green'))
           
 
 def main():
@@ -91,14 +99,20 @@ def main():
         server_socket.listen(5)
         while True:
             # wait for incoming connection and after recieving one, we use threads to handle connections
-            connected_client, addr = server_socket.accept()
-            print(colored(f"[*] Recieve connection from {addr[0]} port {addr[1]}", 'yellow'))
-            client_thread = threading.Thread(target=client_handler, args=(connected_client, addr))
+            connected_client, address = server_socket.accept()
+            client_obj = Client(connected_client, address[0], address[1])
+            asks_client_name(client_obj)
+            clients_list.append(client_obj)
+            print(colored(f"[*] Recieve connection from {address[0]} port {address[1]}", 'yellow'))
+            client_thread = threading.Thread(target=client_handler, args=(client_obj,))
             client_thread.start()
     
     except KeyboardInterrupt:
         print(colored("\n[!] Closing Server ", 'yellow'))
         server_socket.close()
+        for client in clients_list:
+            client.close()
+            clients_list.remove(client)
         exit(0)
 
 

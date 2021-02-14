@@ -1,4 +1,5 @@
 import socket 
+from threading import Thread
 from termcolor import colored
 
 
@@ -18,16 +19,26 @@ def send_to_server(client_socket, msg):
 
 
 # reciev what server sends, first read the header that contain the message length and then read the message itself
-def recv_from_server(client_socket):
-    msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-    if msg_header:    
-        msg_length = int(msg_header.strip(' '))
-        data = client_socket.recv(msg_length).decode(FORMAT)
-        if data:
-            print(data)
-
+def recv_from_server(client_socket, name):
+    try:
+        while True:
+            msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+            if msg_header:
+                msg_length =  int(msg_header.strip(" "))
+                if msg_length != 0:
+                    data = client_socket.recv(msg_length).decode(FORMAT)
+                    if data != "" and data[:len(name)] != name:
+                        print(data)
+    except Exception as e:
+        print(colored("[Exception]" ,'red'))
 
 def main():
+
+    while True:
+        name = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
+        if name != "":
+            name = name
+            break
 
     # target host and port to connect to 
     thost_ipv4 = "127.0.1.1"
@@ -43,18 +54,24 @@ def main():
         print(colored("[!] failed to connet to target host ip", "red"))
         client_socket.close()
         exit()
-
-    name = input(colored("[*] Enter Your Name: ", "cyan"))
+        
     send_to_server(client_socket, name)
     
     # get data from client and send it to server, repeat this untill client quit by entering q keyword
+    
+    recv_thread = Thread(target=recv_from_server, args=(client_socket, name))
+    recv_thread.start()
+        # recv_from_server(client_socket)
     while True:
-        recv_from_server(client_socket)
-        
-        data_to_send = input(colored(f"[*] {name}@server #> ", "cyan"))
+        data_to_send = input()
+        # send_thread = Thread(target=send_to_server, args=(client_socket, data_to_send))
+        # send_thread.start()
         send_to_server(client_socket, data_to_send)
+
         if data_to_send.lower() == 'q' :
             break
+    
+    client_socket.close()
 
 
 
