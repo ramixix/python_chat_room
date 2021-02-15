@@ -27,8 +27,11 @@ def recv_from_server(client_socket, name):
                 msg_length =  int(msg_header.strip(" "))
                 if msg_length != 0:
                     data = client_socket.recv(msg_length).decode(FORMAT)
-                    if data != "" and data[:len(name)] != name:
-                        print(data)
+                    if data != "":
+                        if  data[:len(name)] != name:
+                            print(colored(data, 'green'))
+                        else:
+                            print(data)
     except Exception as e:
         print(colored("[Exception]" ,'red'))
 
@@ -63,7 +66,7 @@ def main():
     recv_thread.start()
         # recv_from_server(client_socket)
     while True:
-        data_to_send = input()
+        data_to_send = input("")
         # send_thread = Thread(target=send_to_server, args=(client_socket, data_to_send))
         # send_thread.start()
         send_to_server(client_socket, data_to_send)

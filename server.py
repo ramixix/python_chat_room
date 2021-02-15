@@ -42,7 +42,7 @@ def asks_client_name(client_obj):
         name = client_socket.recv(msg_length).decode(FORMAT)
         client_obj.setname(name)
         send_to_client(client_socket, f"Welcom To Chat Room {name} :)")
-        broadcast(f"\"{name}\" Joined Us!!!")
+        broadcast(f"****** '{name}' Joined Us!!! ******")
 
 
 # make a header for every message that is going to be send.
@@ -51,29 +51,33 @@ def asks_client_name(client_obj):
 def client_handler(client_obj):
     client_socket = client_obj.sock
     name = client_obj.name
-    while True:
-        msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-        if msg_header:
-            msg_length =  int(msg_header.strip(" "))
-            if msg_length != 0:
-                data = client_socket.recv(msg_length).decode(FORMAT)
-                if data.lower() == "q":
-                    if len(clients_list) != 1:
-                        client_socket.close()
-                        clients_list.remove(client_obj)   
-                        broadcast(f"[-] clinet \"{name}\" left the chat")
-                        break
-                    else:
-                        client_socket.close()
-                        clients_list.remove(client_obj)   
-                        break
+    try:
+        while True:
+            msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+            if msg_header:
+                msg_length =  int(msg_header.strip(" "))
+                if msg_length != 0:
+                    data = client_socket.recv(msg_length).decode(FORMAT)
+                    if data.lower() == "q":
+                        if len(clients_list) != 1:
+                            client_socket.close()
+                            clients_list.remove(client_obj)   
+                            broadcast(f"[-] clinet \"{name}\" left the chat")
+                            break
+                        else:
+                            client_socket.close()
+                            clients_list.remove(client_obj)   
+                            break
 
-                if data != "":
-                    # broadcast_thread = threading.Thread(target=broadcast, args=(name + ": " + data,))
-                    # broadcast_thread.start()
-                    broadcast(name + ": " + data)
-                    print(colored(f"[+] Data received from {client_obj.ip} port {client_obj.port} : {data}", 'green'))
-          
+                    if data != "":
+                        broadcast_thread = threading.Thread(target=broadcast, args=(name + ": " + data,))
+                        broadcast_thread.start()
+                        #broadcast(name + ": " + data)
+                        print(colored(f"[+] Data received from {client_obj.ip} port {client_obj.port} : {data}", 'green'))
+    except Exception as e :
+        print(colored("[EXCEPTION]" + str(e) , 'red')) 
+        client_socket.close
+        clients_list.remove(client_obj)           
 
 def main():
 
