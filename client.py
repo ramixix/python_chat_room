@@ -30,6 +30,8 @@ def recv_from_server(client_socket, name):
                 if msg_length != 0:
                     data = client_socket.recv(msg_length).decode(FORMAT)
                     if data != "":
+                        if data == "Wrong Password":
+                            break
                         if  data[:len(name)] != name:
                             print(colored(data, 'green'))
                         else:
@@ -37,6 +39,7 @@ def recv_from_server(client_socket, name):
             
     except Exception as e:
         print(colored("[Exception]: " + str(e)  ,'red'))
+
 
 def main():
     while True:
@@ -62,12 +65,25 @@ def main():
         exit()
         
     send_to_server(client_socket, name)
+    # if specified name is equal to Admin then ask for password and send password to server
     if name == "Admin":
         send_to_server(client_socket, passwd)
+        # after sending password to server wait to receive response from the server and if the reponse be equal to-'
+        #  'Wrong Password!!!' then exit otherwise print the response.
+        msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+        if msg_header:
+            msg_length =  int(msg_header.strip(" "))
+            if msg_length != 0:
+                data = client_socket.recv(msg_length).decode(FORMAT)
+                if data != "":
+                    if data == "Wrong Password!!!":
+                        print(colored(data, 'red'))
+                        exit(0)
+                    else:
+                        print(colored(data, 'cyan'))
 
     
     # get data from client and send it to server, repeat this untill client quit by entering q keyword
-    
     recv_thread = Thread(target=recv_from_server, args=(client_socket, name))
     recv_thread.setDaemon(True)
     recv_thread.start()
@@ -79,6 +95,7 @@ def main():
             if data_to_send.lower() == 'q' :
                 break
         except KeyboardInterrupt:
+            # after keyboard interrupt[CTRL-C] send 'q' to server to make sure that server will remove the clinet from the clinets list
             print(colored("Existing...", 'red'))
             send_to_server(client_socket, 'q')
             break

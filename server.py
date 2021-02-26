@@ -8,6 +8,7 @@ HEADERSIZE = 16
 clients_list = []
 Admin_pass = "adfb6dd1ab1238afc37acd8ca24c1279f8d46f61907dd842faab35b0cc41c6e8ad84cbdbef4964b8334c22c4985c2387d53bc47e6c3d0940ac962f521a127d9f"
 
+# anytime a client is conneted to server, Client class used to make an object instance for that client
 class Client:
     def __init__(self, sock, ip, port):
         self.sock = sock
@@ -32,11 +33,14 @@ def send_to_client(client_socket, msg):
     client_socket.send(message)
 
 
+# broadcast function is used to send a message to all clients inside clients_list
 def broadcast(msg):
     for client in clients_list:
         send_to_client(client.sock, msg)
 
 
+# This function is get called just when connected client name is 'Admin'
+# and asks client for Admin password and compare it to 'Admin_pass' password
 def asks_password(client_obj):
     Is_Admin = False
     client_socket = client_obj.sock
@@ -45,8 +49,6 @@ def asks_password(client_obj):
         msg_length = int(msg_header.strip(" "))
         if msg_length != 0:
             passwd = client_socket.recv(msg_length)
-            print(passwd)
-            print(hashlib.sha512(passwd).hexdigest())
             if hashlib.sha512(passwd).hexdigest() == Admin_pass:
                 client_obj.passwd = passwd
                 Is_Admin = True
@@ -55,6 +57,9 @@ def asks_password(client_obj):
                 return Is_Admin
 
 
+# receive the first data that clients send and that would be name and 
+# if connected client be 'Admin' then ask for password,check Admin enter right password and add it to clients_list
+# otherwise send 'Wrong Password!!!' message to client and don't add it to clinets_list
 def verify_clinet(client_obj):
     Is_Client_Valid = True
     client_socket = client_obj.sock
@@ -66,7 +71,7 @@ def verify_clinet(client_obj):
         if name == "Admin":
             is_admin = asks_password(client_obj)
             if is_admin == False:
-                send_to_client(client_socket, "Wrong Password")
+                send_to_client(client_socket, "Wrong Password!!!")
                 Is_Client_Valid = False
                 return Is_Client_Valid
 
