@@ -1,6 +1,8 @@
 import socket 
+import getpass
 from threading import Thread
 from termcolor import colored
+from time import sleep
 
 
 # format that is using for decoding and encoding messages, and header size that is used to determine the length of messages
@@ -31,16 +33,17 @@ def recv_from_server(client_socket, name):
                         if  data[:len(name)] != name:
                             print(colored(data, 'green'))
                         else:
-                            print(data)
+                            print("[ME]: " + data[len(name) + 1:])
+            
     except Exception as e:
-        print(colored("[Exception]" ,'red'))
+        print(colored("[Exception]: " + str(e)  ,'red'))
 
 def main():
-
     while True:
         name = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
         if name != "":
-            name = name
+            if name == "Admin":
+                passwd = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
             break
 
     # target host and port to connect to 
@@ -59,21 +62,27 @@ def main():
         exit()
         
     send_to_server(client_socket, name)
+    if name == "Admin":
+        send_to_server(client_socket, passwd)
+
     
     # get data from client and send it to server, repeat this untill client quit by entering q keyword
     
     recv_thread = Thread(target=recv_from_server, args=(client_socket, name))
+    recv_thread.setDaemon(True)
     recv_thread.start()
-        # recv_from_server(client_socket)
-    while True:
-        data_to_send = input("")
-        # send_thread = Thread(target=send_to_server, args=(client_socket, data_to_send))
-        # send_thread.start()
-        send_to_server(client_socket, data_to_send)
 
-        if data_to_send.lower() == 'q' :
+    while True:
+        try:
+            data_to_send = input("")
+            send_to_server(client_socket, data_to_send)
+            if data_to_send.lower() == 'q' :
+                break
+        except KeyboardInterrupt:
+            print(colored("Existing...", 'red'))
+            send_to_server(client_socket, 'q')
             break
-    
+       
     client_socket.close()
 
 

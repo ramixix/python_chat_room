@@ -1,10 +1,12 @@
 import socket
 from termcolor import colored
 import threading
+import hashlib
 
 FORMAT = "utf-8"
 HEADERSIZE = 16
 clients_list = []
+Admin_pass = "adfb6dd1ab1238afc37acd8ca24c1279f8d46f61907dd842faab35b0cc41c6e8ad84cbdbef4964b8334c22c4985c2387d53bc47e6c3d0940ac962f521a127d9f"
 
 class Client:
     def __init__(self, sock, ip, port):
@@ -12,6 +14,7 @@ class Client:
         self.ip = ip
         self.port = port
         self.name = None
+        self.passwd = None
 
     def setname(self, name):
         self.name = name
@@ -34,15 +37,44 @@ def broadcast(msg):
         send_to_client(client.sock, msg)
 
 
-def asks_client_name(client_obj):
+def asks_password(client_obj):
+    Is_Admin = False
+    client_socket = client_obj.sock
+    msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+    if msg_header:
+        msg_length = int(msg_header.strip(" "))
+        if msg_length != 0:
+            passwd = client_socket.recv(msg_length)
+            print(passwd)
+            print(hashlib.sha512(passwd).hexdigest())
+            if hashlib.sha512(passwd).hexdigest() == Admin_pass:
+                client_obj.passwd = passwd
+                Is_Admin = True
+                return Is_Admin
+            else: 
+                return Is_Admin
+
+
+def verify_clinet(client_obj):
+    Is_Client_Valid = True
     client_socket = client_obj.sock
     msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
     if msg_header:
         msg_length =  int(msg_header.strip(" "))
         name = client_socket.recv(msg_length).decode(FORMAT)
         client_obj.setname(name)
+        if name == "Admin":
+            is_admin = asks_password(client_obj)
+            if is_admin == False:
+                send_to_client(client_socket, "Wrong Password")
+                Is_Client_Valid = False
+                return Is_Client_Valid
+
         send_to_client(client_socket, f"Welcom To Chat Room {name} :)")
         broadcast(f"****** '{name}' Joined Us!!! ******")
+        clients_list.append(client_obj)
+        return Is_Client_Valid
+
 
 
 # make a header for every message that is going to be send.
@@ -55,7 +87,7 @@ def client_handler(client_obj):
         while True:
             msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
             if msg_header:
-                msg_length =  int(msg_header.strip(" "))
+                msg_length = int(msg_header.strip(" "))
                 if msg_length != 0:
                     data = client_socket.recv(msg_length).decode(FORMAT)
                     if data.lower() == "q":
@@ -76,7 +108,7 @@ def client_handler(client_obj):
                         print(colored(f"[+] Data received from {client_obj.ip} port {client_obj.port} : {data}", 'green'))
     except Exception as e :
         print(colored("[EXCEPTION]" + str(e) , 'red')) 
-        client_socket.close
+        client_socket.close()
         clients_list.remove(client_obj)           
 
 def main():
@@ -104,12 +136,12 @@ def main():
         while True:
             # wait for incoming connection and after recieving one, we use threads to handle connections
             connected_client, address = server_socket.accept()
-            client_obj = Client(connected_client, address[0], address[1])
-            asks_client_name(client_obj)
-            clients_list.append(client_obj)
             print(colored(f"[*] Recieve connection from {address[0]} port {address[1]}", 'yellow'))
-            client_thread = threading.Thread(target=client_handler, args=(client_obj,))
-            client_thread.start()
+            client_obj = Client(connected_client, address[0], address[1])
+            if verify_clinet(client_obj) == True:
+                client_thread = threading.Thread(target=client_handler, args=(client_obj,))
+                client_thread.setDaemon(True)
+                client_thread.start()
     
     except KeyboardInterrupt:
         print(colored("\n[!] Closing Server ", 'yellow'))
