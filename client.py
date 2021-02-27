@@ -39,6 +39,7 @@ def recv_from_server(client_socket, name):
             
     except Exception as e:
         print(colored("[Exception]: " + str(e)  ,'red'))
+        exit()
 
 
 def main():

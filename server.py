@@ -2,12 +2,14 @@ import socket
 from termcolor import colored
 import threading
 import hashlib
+from time import sleep
 
 FORMAT = "utf-8"
 HEADERSIZE = 16
 clients_list = []
 Admin_pass = "adfb6dd1ab1238afc37acd8ca24c1279f8d46f61907dd842faab35b0cc41c6e8ad84cbdbef4964b8334c22c4985c2387d53bc47e6c3d0940ac962f521a127d9f"
 
+Puase = None
 # anytime a client is conneted to server, Client class used to make an object instance for that client
 class Client:
     def __init__(self, sock, ip, port):
@@ -23,6 +25,15 @@ class Client:
     def __repr__(self):
         return f"Client({self.ip}, {self.port})"
 
+
+def find_active_users():
+    active_users_list = []
+    active_users_number = 0
+    if len(clients_list) > 0 :
+        for client in clients_list:
+            active_users_list.append(client.name)
+            active_users_number += 1 
+    return (active_users_list, active_users_number)
 
 
 def send_to_client(client_socket, msg):
@@ -41,20 +52,20 @@ def broadcast(msg):
 
 # This function is get called just when connected client name is 'Admin'
 # and asks client for Admin password and compare it to 'Admin_pass' password
-def asks_password(client_obj):
-    Is_Admin = False
-    client_socket = client_obj.sock
-    msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-    if msg_header:
-        msg_length = int(msg_header.strip(" "))
-        if msg_length != 0:
-            passwd = client_socket.recv(msg_length)
-            if hashlib.sha512(passwd).hexdigest() == Admin_pass:
-                client_obj.passwd = passwd
-                Is_Admin = True
-                return Is_Admin
-            else: 
-                return Is_Admin
+# def asks_password(client_obj):
+#     Is_Admin = False
+#     client_socket = client_obj.sock
+#     msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+#     if msg_header:
+#         msg_length = int(msg_header.strip(" "))
+#         if msg_length != 0:
+#             passwd = client_socket.recv(msg_length)
+#             if hashlib.sha512(passwd).hexdigest() == Admin_pass:
+#                 client_obj.passwd = passwd
+#                 Is_Admin = True
+#                 return Is_Admin
+#             else: 
+#                 return Is_Admin
 
 
 # receive the first data that clients send and that would be name and 
@@ -76,10 +87,29 @@ def verify_clinet(client_obj):
                 return Is_Client_Valid
 
         send_to_client(client_socket, f"Welcom To Chat Room {name} :)")
+        current_active_users_number = find_active_users()[1]
+        send_to_client(client_socket, f"{current_active_users_number} User(s) Are Currently Active(Enter 's' to display a list of active user)")
         broadcast(f"****** '{name}' Joined Us!!! ******")
         clients_list.append(client_obj)
         return Is_Client_Valid
 
+
+# def admin_functions(data):
+#     global Puase
+#     action = data[1:2]
+#     if action.lower() == 'k':
+#         users_to_kick = data.split(" ")[1:]
+#         for user in users_to_kick:
+#             for client in clients_list:
+#                 if user == client.name:
+#                     send_to_client(client.sock, "You Have Been Kicked by Admin!!!")
+#                     client.sock.close()
+#                     clients_list.remove(client)
+#                     broadcast(f"[-] clinet \"{client.name}\" has been kicked by admin from the chat.")
+#                     break
+#     elif action.lower() == 'p':
+#         pause_for_sec = data.split(" ")[1]
+#         Puase = int(pause_for_sec)
 
 
 # make a header for every message that is going to be send.
@@ -95,6 +125,13 @@ def client_handler(client_obj):
                 msg_length = int(msg_header.strip(" "))
                 if msg_length != 0:
                     data = client_socket.recv(msg_length).decode(FORMAT)
+                    # if data.startswith("!"):
+                    #     if name == "Admin":
+                    #         admin_functions(data)
+                    #     else:
+                    #         send_to_client(client_socket, "Permission denied, are you Admin?")
+                    #     continue
+
                     if data.lower() == "q":
                         if len(clients_list) != 1:
                             client_socket.close()
@@ -105,7 +142,10 @@ def client_handler(client_obj):
                             client_socket.close()
                             clients_list.remove(client_obj)   
                             break
-
+                    elif data.lower() == "s":
+                        current_active_users_list = find_active_users()[0]
+                        send_to_client(client_socket, f"Active users: {current_active_users_list}")
+                        continue
                     if data != "":
                         broadcast_thread = threading.Thread(target=broadcast, args=(name + ": " + data,))
                         broadcast_thread.start()
