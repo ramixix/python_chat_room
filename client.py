@@ -8,6 +8,20 @@ from time import sleep
 # format that is using for decoding and encoding messages, and header size that is used to determine the length of messages
 FORMAT = "utf-8"
 HEADERSIZE = 16
+UserName = ""
+UserPass = ""
+stop_running = False
+
+def get_name():
+    global UserName
+    global UserPass
+    while True:
+        UserName = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
+        if UserName != "":
+            if UserName == "Admin":
+                UserPass = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
+            break
+
 
 # make a header for every message that is going to be send.
 # this header contain message length so this way by reading header first 
@@ -20,22 +34,35 @@ def send_to_server(client_socket, msg):
     client_socket.send(message)
 
 
+def get_data(client_socket):
+    msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+    if msg_header:
+        msg_length =  int(msg_header.strip(" "))
+        if msg_length != 0:
+            data = client_socket.recv(msg_length).decode(FORMAT)
+            return data
+
 # reciev what server sends, first read the header that contain the message length and then read the message itself
 def recv_from_server(client_socket, name):
+    global stop_running
     try:
         while True:
-            msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-            if msg_header:
-                msg_length =  int(msg_header.strip(" "))
-                if msg_length != 0:
-                    data = client_socket.recv(msg_length).decode(FORMAT)
-                    if data != "":
-                        if data == "Wrong Password":
-                            break
-                        if  data[:len(name)] != name:
-                            print(colored(data, 'green'))
-                        else:
-                            print("[ME]: " + data[len(name) + 1:])
+            if stop_running == True:
+                break
+            data = get_data(client_socket)
+            if data != "":
+                if data == "Username":
+                    send_to_server(client_socket, name)
+                    continue
+                elif data == "Again":
+                    stop_running = True
+                    continue
+                elif data == "Wrong Password":
+                    break
+                if  data[:len(name)] != name:
+                    print(colored(data, 'green'))
+                else:
+                    print("[ME]: " + data[len(name) + 1:])
             
     except Exception as e:
         print(colored("[Exception]: " + str(e)  ,'red'))
@@ -43,12 +70,13 @@ def recv_from_server(client_socket, name):
 
 
 def main():
-    while True:
-        name = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
-        if name != "":
-            if name == "Admin":
-                passwd = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
-            break
+    get_name()
+    # while True:
+    #     name = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
+    #     if name != "":
+    #         if name == "Admin":
+    #             passwd = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
+    #         break
 
     # target host and port to connect to 
     thost_ipv4 = "127.0.1.1"
@@ -65,36 +93,40 @@ def main():
         client_socket.close()
         exit()
         
-    send_to_server(client_socket, name)
+    # send_to_server(client_socket, name)
     # if specified name is equal to Admin then ask for password and send password to server
-    if name == "Admin":
-        send_to_server(client_socket, passwd)
+    # if name == "Admin":
+    #   send_to_server(client_socket, passwd)
         # after sending password to server wait to receive response from the server and if the reponse be equal to-'
         #  'Wrong Password!!!' then exit otherwise print the response.
-        msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-        if msg_header:
-            msg_length =  int(msg_header.strip(" "))
-            if msg_length != 0:
-                data = client_socket.recv(msg_length).decode(FORMAT)
-                if data != "":
-                    if data == "Wrong Password!!!":
-                        print(colored(data, 'red'))
-                        exit(0)
-                    else:
-                        print(colored(data, 'cyan'))
+        # msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
+        # if msg_header:
+        #     msg_length =  int(msg_header.strip(" "))
+        #     if msg_length != 0:
+        #         data = client_socket.recv(msg_length).decode(FORMAT)
+        #         if data != "":
+        #             if data == "Wrong Password!!!":
+        #                 print(colored(data, 'red'))
+        #                 exit(0)
+        #             else:
+        #                 print(colored(data, 'cyan'))
 
     
     # get data from client and send it to server, repeat this untill client quit by entering q keyword
-    recv_thread = Thread(target=recv_from_server, args=(client_socket, name))
+    #recv_thread = Thread(target=recv_from_server, args=(client_socket, name))
+    recv_thread = Thread(target=recv_from_server, args=(client_socket, UserName))
     recv_thread.setDaemon(True)
     recv_thread.start()
 
     while True:
         try:
-            data_to_send = input("")
-            send_to_server(client_socket, data_to_send)
-            if data_to_send.lower() == 'q' :
+            if stop_running == True:
                 break
+            data_to_send = input("")
+            if data_to_send != "":
+                send_to_server(client_socket, data_to_send)
+                if data_to_send.lower() == 'q' :
+                    break
         except KeyboardInterrupt:
             # after keyboard interrupt[CTRL-C] send 'q' to server to make sure that server will remove the clinet from the clinets list
             print(colored("Existing...", 'red'))
