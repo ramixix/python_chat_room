@@ -4,12 +4,13 @@ import threading
 import hashlib
 from time import sleep
 
+
 FORMAT = "utf-8"
 HEADERSIZE = 16
 clients_list = []
 Admin_pass = "adfb6dd1ab1238afc37acd8ca24c1279f8d46f61907dd842faab35b0cc41c6e8ad84cbdbef4964b8334c22c4985c2387d53bc47e6c3d0940ac962f521a127d9f"
 
-Puase = None
+
 # anytime a client is conneted to server, Client class used to make an object instance for that client
 class Client:
     def __init__(self, sock, ip, port):
@@ -29,7 +30,10 @@ class Client:
 def leaving_chatroom(client_obj, msg):
     if len(clients_list) != 1:
         client_obj.sock.close()
-        clients_list.remove(client_obj)   
+        try:
+            clients_list.remove(client_obj)   
+        except:
+            pass
         broadcast(msg)
     else:
         client_obj.sock.close()
@@ -69,8 +73,8 @@ def broadcast(msg):
         send_to_client(client.sock, msg)
 
 
-# This function is get called just when connected client name is 'Admin'
-# and asks client for Admin password and compare it to 'Admin_pass' password
+""" This function is get called just when connected client name is 'Admin'
+and asks client for Admin password and compare it to 'Admin_pass' password"""
 def asks_password(client_obj):
     client_socket = client_obj.sock
     Is_Admin = False
@@ -91,7 +95,6 @@ def verify_clinet(client_obj):
     Is_Client_Valid = True
     client_socket = client_obj.sock
     send_to_client(client_socket, "Username")
-
     name = get_data(client_socket)
     if len(clients_list) > 0:
         for client in clients_list:
@@ -119,21 +122,25 @@ def verify_clinet(client_obj):
 
 
 def admin_functions(data):
-    global Puase
+    #global Puase
     action = data[1:2]
+
     if action.lower() == 'k':
         users_to_kick = data.split(" ")[1:]
-        for user in users_to_kick:
-            for client in clients_list:
-                if user == client.name:
-                    send_to_client(client.sock, "You Have Been Kicked by Admin!!!")
-                    client.sock.close()
-                    clients_list.remove(client)
-                    broadcast(f"[-] clinet \"{client.name}\" has been kicked by admin from the chat.")
-                    break
-    elif action.lower() == 'p':
-        pause_for_sec = data.split(" ")[1]
-        Puase = int(pause_for_sec)
+        if len(users_to_kick) > 0:
+            for user in users_to_kick:
+                for client in clients_list:
+                    if user == client.name:
+                        send_to_client(client.sock, "You Have Been Kicked by Admin!!!")
+                        send_to_client(client.sock, "KICK")
+                        client.sock.close()
+                        clients_list.remove(client)
+                        broadcast(f"[-] clinet \"{client.name}\" has been kicked by admin from the chat.")
+                        break
+        
+    # elif action.lower() == 'p':
+    #     pause_for_sec = data.split(" ")[1]
+    #     Puase = int(pause_for_sec)
 
 
 """ make a header for every message that is going to be send. this header contain message 
@@ -145,13 +152,6 @@ def client_handler(client_obj):
         try:     
             data = get_data(client_socket)
             if data != "":
-                if data.startswith("!"):
-                    if name == "Admin":
-                        admin_functions(data)
-                    else:
-                        send_to_client(client_socket, "Permission denied, are you Admin?")
-                    continue
-
                 if data.lower() == "q":
                     leaving_chatroom(client_obj, f"[-] clinet \"{name}\" left the chat")
                     break
@@ -161,13 +161,20 @@ def client_handler(client_obj):
                     send_to_client(client_socket, f"Active users: {current_active_users_list}")
                     continue
 
+                elif data.startswith("!"):
+                    if name == "Admin":
+                        admin_functions(data)
+                    else:
+                        send_to_client(client_socket, "Permission denied, are you Admin?")
+                    continue
+
                 else:
                     broadcast_thread = threading.Thread(target=broadcast, args=(name + ": " + data,))
                     broadcast_thread.start()
                     print(colored(f"[+] Data received from {client_obj.ip} port {client_obj.port} : {data}", 'green'))
 
         except Exception as e :
-            print(colored("[EXCEPTION]" + str(e) , 'red')) 
+            print(colored("[EXCEPTION]" + str(e) + f" Clinet {name}" , 'red')) 
             leaving_chatroom(client_obj, f"-] clinet \"{name}\" left duo to some connection error")
             break
         

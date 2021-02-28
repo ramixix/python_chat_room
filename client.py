@@ -12,20 +12,9 @@ UserName = ""
 UserPass = ""
 stop_running = False
 
-def get_name():
-    global UserName
-    global UserPass
-    while True:
-        UserName = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
-        if UserName != "":
-            if UserName == "Admin":
-                UserPass = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
-            break
 
-
-# make a header for every message that is going to be send.
-# this header contain message length so this way by reading header first 
-# server can easily find the length of message
+""" make a header for every message that is going to be send.this header contain message
+length so this way by reading header first server can easily find the length of message"""
 def send_to_server(client_socket, msg):
     msg_length = len(msg)
     header = str(msg_length)
@@ -68,6 +57,10 @@ def recv_from_server(client_socket):
                     stop_running = True
                     continue
 
+                elif data == "KICK":
+                    stop_running = True
+                    continue
+
                 if  data[:len(UserName)] != UserName:
                     print(colored(data, 'green'))
                 else:
@@ -79,7 +72,15 @@ def recv_from_server(client_socket):
 
 
 def main():
-    get_name()
+    global UserName
+    global UserPass
+
+    while True:
+        UserName = input(colored("[*] Enter Your Name OR a Nickname: ", "cyan"))
+        if UserName != "":
+            if UserName == "Admin":
+                UserPass = getpass.getpass(colored("[*] Enter Password: ", "cyan"))
+            break
 
     # target host and port to connect to 
     thost_ipv4 = "127.0.1.1"
@@ -96,20 +97,6 @@ def main():
         client_socket.close()
         exit()
         
-    #   send_to_server(client_socket, passwd)
-        # msg_header = client_socket.recv(HEADERSIZE).decode(FORMAT)
-        # if msg_header:
-        #     msg_length =  int(msg_header.strip(" "))
-        #     if msg_length != 0:
-        #         data = client_socket.recv(msg_length).decode(FORMAT)
-        #         if data != "":
-        #             if data == "Wrong Password!!!":
-        #                 print(colored(data, 'red'))
-        #                 exit(0)
-        #             else:
-        #                 print(colored(data, 'cyan'))
-
-    
     # get data from client and send it to server, repeat this untill client quit by entering q keyword
     #recv_thread = Thread(target=recv_from_server, args=(client_socket, UserName))
     recv_thread = Thread(target=recv_from_server, args=(client_socket,))
@@ -120,6 +107,7 @@ def main():
         try:
             if stop_running == True:
                 break
+
             data_to_send = input("")
             if data_to_send != "":
                 send_to_server(client_socket, data_to_send)
