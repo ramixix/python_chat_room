@@ -72,9 +72,10 @@ def broadcast(msg):
 # This function is get called just when connected client name is 'Admin'
 # and asks client for Admin password and compare it to 'Admin_pass' password
 def asks_password(client_obj):
-    Is_Admin = False
     client_socket = client_obj.sock
-    passwd = get_data(client_socket)
+    Is_Admin = False
+    send_to_client(client_socket, "Password")
+    passwd = get_data(client_socket).encode(FORMAT)
     if hashlib.sha512(passwd).hexdigest() == Admin_pass:
         client_obj.passwd = passwd
         Is_Admin = True
@@ -98,14 +99,14 @@ def verify_clinet(client_obj):
                 send_to_client(client_socket, "[Error] A user already exists for the user name specified. Please register again using a different user name.")
                 send_to_client(client_socket, "Again")
                 Is_Client_Valid = False
-                return Is_Client_Valid
-                
+                return Is_Client_Valid     
 
     client_obj.setname(name)
+
     if name == "Admin":
         is_admin = asks_password(client_obj)
         if is_admin == False:
-            send_to_client(client_socket, "Wrong Password!!!")
+            send_to_client(client_socket, "WrongPass")
             Is_Client_Valid = False
             return Is_Client_Valid
 
